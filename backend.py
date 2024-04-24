@@ -66,6 +66,7 @@ def generate_sudoku_puzzle():
     return grid
 
 
+
 def is_valid_sudoku(grid):
     # Check rows and columns
     print("1")
