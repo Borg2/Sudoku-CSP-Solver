@@ -1,0 +1,61 @@
+import numpy as np
+import random
+
+class Board:
+    def __init__(self):
+        # Initialize an empty Sudoku grid
+        self.grid = np.zeros((9, 9), dtype=int)
+
+    def set_value(self, row, col, value):
+        # Set the value of a cell in the Sudoku grid
+        self.grid[row][col] = value
+
+    def get_value(self, row, col):
+        # Get the value of a cell in the Sudoku grid
+        return self.grid[row][col]
+
+    def is_valid_move(self, row, col, value):
+        # Check if placing a value in a cell is a valid move
+        return (
+            self.is_valid_row(row, value) and
+            self.is_valid_column(col, value) and
+            self.is_valid_subgrid(row, col, value)
+        )
+
+    def is_valid_row(self, row, value):
+        # Check if placing a value in a row is valid
+        return value not in self.grid[row]
+
+    def is_valid_column(self, col, value):
+        # Check if placing a value in a column is valid
+        return value not in self.grid[:, col]
+
+    def is_valid_subgrid(self, row, col, value):
+        # Check if placing a value in a 3x3 subgrid is valid
+        subgrid_row_start = (row // 3) * 3
+        subgrid_col_start = (col // 3) * 3
+        subgrid_values = self.grid[subgrid_row_start:subgrid_row_start + 3, subgrid_col_start:subgrid_col_start + 3]
+        return value not in subgrid_values
+
+def generate_sudoku_puzzle():
+    grid = np.zeros((9, 9), dtype=int)
+
+    # Populate the diagonal subgrids (3x3)
+    for i in range(0, 9, 3):
+        subgrid = [1, 2, 3, 4, 5, 6, 7, 8, 9]
+        random.shuffle(subgrid)
+        for j in range(3):
+            for k in range(3):
+                grid[i + j][i + k] = subgrid.pop()
+
+    # Solve the Sudoku puzzle
+    #solve_sudoku(grid)
+
+    # Remove some numbers to create the puzzle
+    remove_count = random.randint(30, 50)
+    for _ in range(remove_count):
+        row = random.randint(0, 8)
+        col = random.randint(0, 8)
+        grid[row][col] = 0
+
+    return grid
