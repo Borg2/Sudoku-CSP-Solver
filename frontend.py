@@ -86,7 +86,7 @@ def mode1_window():
 
     def generate_new_puzzle():
         puzzle = Board()
-        puzzle.grid = puzzle.generate_sudoko_puzzle()
+        puzzle.grid = puzzle.generate_sudoku_puzzle()
         return puzzle
 
     generate_button = Button(50, 600, 350, 60, "Generate Puzzle", GRAY, RED, generate_new_puzzle)
