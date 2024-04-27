@@ -72,6 +72,84 @@ class Board:
         self.grid = np.zeros((9, 9), dtype=int)
         return self.grid
 
+class CSP:
+    def __init__(self, variables) -> None:
+        self.variables = variables
+        self.domain = {}
+        self.constraints = []
 
+    def create_domain_list(self, puzzle: Board):
+        self.domain = {}
+        for i in range(9):
+            for j in range(9):
+                x = puzzle.get_value(i,j)
+                if x != 0:
+                    self.domain[(i,j)] = [x]
+                else:
+                    self.domain[(i,j)] = [1,2,3,4,5,6,7,8,9] 
+    
+
+
+    def create_constraints(self) -> list:
+        self.constraints = []
+
+        # Row and Column constraints
+        for i in range(9):
+            for j in range(9):
+                for k in range(j + 1, 9):
+                    # Add row constraint
+                    self.constraints.append((self.variables[i, j], self.variables[i, k]))
+                    # Add column constraint
+                    self.constraints.append((self.variables[j, i], self.variables[k, i]))
+
+        # Subgrid constraints
+        for i in range(0, 9, 3):
+            for j in range(0, 9, 3):
+                for ii in range(3):
+                    for jj in range(3):
+                        for di in range(3):
+                            for dj in range(3):
+                                if (ii != di or jj != dj):
+                                    self.constraints.append((self.variables[i + ii, j + jj], self.variables[i + di, j + dj]))
+
+        return self.constraints
+    
+    def is_consistent(self, x1, x2):
+        return x1 != x2
+
+    def revise(self, arc) -> bool:
+        revised = False
+        x1, x2 = arc
+        for x in self.domain[x1][:]:
+            if not any(self.is_consistent(x,y) for y in self.domain[x2]):
+                self.domain[x1].remove(x)
+                revised = True 
+        return revised        
+
+
+    def arc_algorithm(self) -> bool:
+        queue = self.constraints[:]
+        while queue:
+            arc = queue.pop(0)
+            x1, x2 = arc
+            if self.revise(arc):
+                if len(self.domain[x1]) == 0:
+                    return False
+                for xk in (var for var in self.variables if var != x1 and var != x2):
+                    queue.append((x1,xk))
+        return True  
+
+    def resultant_grid(self):
+        grid = np.zeros((9,9), dtype=int)
+        for key, value in self.domain.items():
+            i,j = key
+            if len(value) == 1:
+                grid[i,j] = value[0]
+        return grid        
+
+                   
+
+
+    
 
 

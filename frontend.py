@@ -1,6 +1,6 @@
 import pygame
 import sys
-from backend import Board
+from backend import Board, CSP
 import numpy as np
 
 # Initialize Pygame
@@ -88,10 +88,18 @@ def mode1_window():
         puzzle = Board()
         puzzle.grid = puzzle.generate_sudoku_puzzle()
         return puzzle
+    
+    def solve_puzzle(puzzle: Board):
+        variables = np.zeros((9,9), dtype=int)
+        sudoko_solver = CSP(variables)
+        sudoko_solver.create_domain_list(puzzle)
+        sudoko_solver.create_constraints()
+        sudoko_solver.arc_algorithm()
+        return sudoko_solver.resultant_grid()
 
-    generate_button = Button(50, 600, 350, 60, "Generate Puzzle", GRAY, RED, generate_new_puzzle)
-    solve_button = Button(440, 600, 150, 60, "Solve", GRAY, RED, lambda: print("This will solve later"))
     current_puzzle = generate_new_puzzle()
+    generate_button = Button(50, 600, 350, 60, "Generate Puzzle", GRAY, RED, generate_new_puzzle)
+    solve_button = Button(440, 600, 150, 60, "Solve", GRAY, RED, lambda: solve_puzzle(current_puzzle))
 
     while True:
         for event in pygame.event.get():
@@ -104,7 +112,7 @@ def mode1_window():
                     if generate_button.is_hovered(pos):
                         current_puzzle = generate_new_puzzle()
                     elif solve_button.is_hovered(pos):
-                        solve_button.action()
+                        current_puzzle = solve_puzzle(current_puzzle)
 
         WINDOW.fill(WHITE)
 
