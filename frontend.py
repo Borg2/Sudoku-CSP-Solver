@@ -90,16 +90,23 @@ def mode1_window():
         return puzzle
     
     def solve_puzzle(puzzle: Board):
-        variables = np.zeros((9,9), dtype=int)
+        variables = np.empty((9,9), dtype=tuple)
+        for i in range(9):
+            for j in range(9):
+                variables[i, j] = (i, j)
         sudoko_solver = CSP(variables)
-        sudoko_solver.create_domain_list(puzzle)
-        sudoko_solver.create_constraints()
-        sudoko_solver.arc_algorithm()
-        return sudoko_solver.resultant_grid()
+        domain = sudoko_solver.create_domain_list(puzzle) 
+        solved = sudoko_solver.arc_algorithm()
+        if solved:
+            return sudoko_solver.resultant_grid()
+        else:
+            # If the puzzle cannot be solved, return the original puzzle'
+            print("non solvable")
+            return puzzle
 
     current_puzzle = generate_new_puzzle()
     generate_button = Button(50, 600, 350, 60, "Generate Puzzle", GRAY, RED, generate_new_puzzle)
-    solve_button = Button(440, 600, 150, 60, "Solve", GRAY, RED, lambda: solve_puzzle(current_puzzle))
+    solve_button = Button(440, 600, 150, 60, "Solve", GRAY, RED, lambda: None)  # Placeholder lambda for now
 
     while True:
         for event in pygame.event.get():

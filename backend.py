@@ -78,7 +78,7 @@ class CSP:
         self.domain = {}
         self.constraints = []
 
-    def create_domain_list(self, puzzle: Board):
+    def create_domain_list(self, puzzle: Board)->dict:
         self.domain = {}
         for i in range(9):
             for j in range(9):
@@ -87,7 +87,7 @@ class CSP:
                     self.domain[(i,j)] = [x]
                 else:
                     self.domain[(i,j)] = [1,2,3,4,5,6,7,8,9] 
-    
+        return self.domain            
 
 
     def create_constraints(self) -> list:
@@ -113,19 +113,21 @@ class CSP:
                                     self.constraints.append((self.variables[i + ii, j + jj], self.variables[i + di, j + dj]))
 
         return self.constraints
-    
-    def is_consistent(self, x1, x2):
-        return x1 != x2
 
     def revise(self, arc) -> bool:
         revised = False
         x1, x2 = arc
-        for x in self.domain[x1][:]:
-            if not any(self.is_consistent(x,y) for y in self.domain[x2]):
-                self.domain[x1].remove(x)
-                revised = True 
-        return revised        
+        if x1 in self.domain:
+            for x in list(self.domain[x1]):
+                if not any(self.is_consistent(x, y) for y in self.domain[x2]):
+                    self.domain[x1].remove(x)
+                    revised = True
+    
+        return revised
 
+
+    def is_consistent(self, x1, x2):
+        return x1 != x2
 
     def arc_algorithm(self) -> bool:
         queue = self.constraints[:]
@@ -135,17 +137,19 @@ class CSP:
             if self.revise(arc):
                 if len(self.domain[x1]) == 0:
                     return False
-                for xk in (var for var in self.variables if var != x1 and var != x2):
-                    queue.append((x1,xk))
-        return True  
+                for i in range(9):
+                    for j in range(9):
+                        if (i, j) != x1 and (i, j) != x2:
+                            queue.append(((i, j), x1))
+        return True, self.domain
 
     def resultant_grid(self):
-        grid = np.zeros((9,9), dtype=int)
+        result = Board()
         for key, value in self.domain.items():
             i,j = key
             if len(value) == 1:
-                grid[i,j] = value[0]
-        return grid        
+                result.grid[i,j] = value[0]
+        return result
 
                    
 
