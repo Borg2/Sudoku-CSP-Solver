@@ -1,7 +1,8 @@
 import pygame
 import sys
-from backend import Board, CSP
+from backend import Board, generate_random_puzzle , solve_sudoku, is_valid_sudoku, is_valid_move
 import numpy as np
+import os
 
 # Initialize Pygame
 pygame.init()
@@ -23,6 +24,15 @@ RED = (255, 0, 0)
 # Use a specific font for the buttons
 button_font = pygame.font.SysFont("Jungle Adventurer", 40)  # Change "None" to specify the font name if desired
 
+# Define a context manager to temporarily suppress prints
+class SuppressPrints:
+    def __enter__(self):
+        self._original_stdout = sys.stdout
+        sys.stdout = open(os.devnull, 'w')  # Redirect stdout to /dev/null
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        sys.stdout.close()
+        sys.stdout = self._original_stdout  # Restore original stdout
 
 # Define buttons
 class Button:
@@ -59,7 +69,7 @@ class Button:
         self.text = text
 
 
-def draw_sudoku_grid(window, current_puzzle: Board):
+def draw_sudoku_grid(window, grid):
     # Draw Sudoku grid
     cell_size = 60
     bold_line_width = 4  # Adjust the width of the bold lines as needed
@@ -72,8 +82,8 @@ def draw_sudoku_grid(window, current_puzzle: Board):
     for i in range(9):
         for j in range(9):
             pygame.draw.rect(window, BLACK, (50 + j * cell_size, 50 + i * cell_size, cell_size, cell_size), 1)
-            if current_puzzle.get_value(i, j) != 0:
-                text_surface = button_font.render(str(current_puzzle.get_value(i, j)), True, BLACK)
+            if grid[i, j] != 0:
+                text_surface = button_font.render(str(grid[i, j]), True, BLACK)
                 text_rect = text_surface.get_rect(center=(50 + j * cell_size + cell_size // 2,
                                                           50 + i * cell_size + cell_size // 2))
                 window.blit(text_surface, text_rect)
@@ -84,29 +94,17 @@ def mode1_window():
     WINDOW = pygame.display.set_mode((640, 680))
     pygame.display.set_caption("Sudoku Solver")
 
-    def generate_new_puzzle():
-        puzzle = Board()
-        puzzle.grid = puzzle.generate_sudoku_puzzle()
+    def generate_new_puzzle(difficulty_level):
+        puzzle = generate_random_puzzle(difficulty_level)
         return puzzle
     
-    def solve_puzzle(puzzle: Board):
-        variables = np.empty((9,9), dtype=tuple)
-        for i in range(9):
-            for j in range(9):
-                variables[i, j] = (i, j)
-        sudoko_solver = CSP(variables)
-        domain = sudoko_solver.create_domain_list(puzzle) 
-        solved = sudoko_solver.arc_algorithm()
-        if solved:
-            return sudoko_solver.resultant_grid()
-        else:
-            # If the puzzle cannot be solved, return the original puzzle'
-            print("non solvable")
-            return puzzle
+    def solve_puzzle(puzzle):
+        return solve_sudoku(puzzle.grid)
 
-    current_puzzle = generate_new_puzzle()
+    difficulty_level = 3 # 3 -> EASY      2 -> MEDIUM    1 -> HARD
+    current_puzzle = generate_new_puzzle(difficulty_level) 
     generate_button = Button(50, 600, 350, 60, "Generate Puzzle", GRAY, RED, generate_new_puzzle)
-    solve_button = Button(440, 600, 150, 60, "Solve", GRAY, RED, lambda: None)  # Placeholder lambda for now
+    solve_button = Button(440, 600, 150, 60, "Solve", GRAY, RED, solve_sudoku)  # Placeholder lambda for now
 
     while True:
         for event in pygame.event.get():
@@ -117,14 +115,14 @@ def mode1_window():
                 if event.button == 1:
                     pos = pygame.mouse.get_pos()
                     if generate_button.is_hovered(pos):
-                        current_puzzle = generate_new_puzzle()
+                        current_puzzle = generate_new_puzzle(difficulty_level)
                     elif solve_button.is_hovered(pos):
                         current_puzzle = solve_puzzle(current_puzzle)
 
         WINDOW.fill(WHITE)
 
         # Draw Sudoku grid
-        draw_sudoku_grid(WINDOW, current_puzzle)
+        draw_sudoku_grid(WINDOW, current_puzzle.grid)
 
         # Draw buttons
         generate_button.draw(WINDOW, generate_button.is_hovered(pygame.mouse.get_pos()))
@@ -142,9 +140,24 @@ def mode2_window():
         puzzle = Board()
         puzzle.grid = puzzle.generate_empty_sudoko()
         return puzzle
+    
+    def solver(current_puzzle):
+        # First, check validity
+        if not is_valid_sudoku(current_puzzle.grid):
+            print("Invalid Puzzle")
+            # Reset the puzzle
+            return generate_empty_puzzle()
+        
+        # Solve the puzzle
+        solved_puzzle = solve_sudoku(current_puzzle.grid)
+        if solved_puzzle is None:
+            print("Unsolvable Puzzle")
+        else:
+            print("Puzzle Solved!")
+            return solved_puzzle
 
     reset_button = Button(50, 600, 350, 60, "Reset Puzzle", GRAY, RED, generate_empty_puzzle)
-    solve_button = Button(440, 600, 150, 60, "Solve", GRAY, RED, lambda: print("This will solve later"))
+    solve_button = Button(440, 600, 150, 60, "Solve", GRAY, RED, solver)
     current_puzzle = generate_empty_puzzle()
 
     while True:
@@ -158,7 +171,7 @@ def mode2_window():
                     if reset_button.is_hovered(pos):
                         current_puzzle = generate_empty_puzzle()
                     elif solve_button.is_hovered(pos):
-                        solve_button.action()
+                        current_puzzle = solver(current_puzzle)
                     else:
                         x, y = pos[0], pos[1]
                         row = (y - 50) // 60
@@ -174,7 +187,7 @@ def mode2_window():
         WINDOW.fill(WHITE)
 
         # Draw Sudoku grid
-        draw_sudoku_grid(WINDOW, current_puzzle)
+        draw_sudoku_grid(WINDOW, current_puzzle.grid)
 
         # Draw buttons
         reset_button.draw(WINDOW, reset_button.is_hovered(pygame.mouse.get_pos()))
@@ -182,10 +195,72 @@ def mode2_window():
 
         pygame.display.update()
 
+def mode3_window():
+    pygame.init()
+    WINDOW = pygame.display.set_mode((640, 680))
+    pygame.display.set_caption("Interactive Game!")
+
+    def generate_new_puzzle(difficulty_level):
+        while True:
+            puzzle = generate_random_puzzle(difficulty_level)
+            with SuppressPrints():
+                solved_puzzle = solve_sudoku(puzzle.grid)
+            if solved_puzzle is not None:
+                return puzzle
+
+    def is_valid_input(row, col, num):
+        # Get the solved puzzle using the solve_sudoku function
+        with SuppressPrints():
+            solved_puzzle = solve_sudoku(current_puzzle.grid)
+
+        # Check if the user's input matches the corresponding cell in the solved puzzle
+        if solved_puzzle is not None and solved_puzzle.get_value(row, col) == num:
+            current_puzzle.set_value(row, col, num)
+            return True
+        else:
+            print(f"Can't place {num} in ({row},{col}) as it is an invalid move!")
+            return False
+
+    difficulty_level = 3        # 3 -> EASY      2 -> MEDIUM    1 -> HARD
+    generate_button = Button(120, 600, 400, 60, "Generate New Puzzle", GRAY, RED, generate_new_puzzle)
+    current_puzzle = generate_new_puzzle(difficulty_level)
+    selected_cell = None
+
+    while True:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                if event.button == 1:
+                    pos = pygame.mouse.get_pos()
+                    if generate_button.is_hovered(pos):
+                        current_puzzle = generate_new_puzzle(difficulty_level)
+                    else:
+                        x, y = pos[0], pos[1]
+                        row = (y - 50) // 60
+                        column = (x - 50) // 60
+                        selected_cell = (row, column)
+            elif event.type == pygame.KEYDOWN:
+                if selected_cell is not None and current_puzzle.get_value(selected_cell[0], selected_cell[1]) == 0:
+                    if event.key in range(pygame.K_1, pygame.K_9 + 1):
+                        number = int(pygame.key.name(event.key))
+                        if is_valid_input(selected_cell[0], selected_cell[1], number):
+                            selected_cell = None
+
+        WINDOW.fill(WHITE)
+
+        # Draw Sudoku grid
+        draw_sudoku_grid(WINDOW, current_puzzle.grid)
+
+        # Draw buttons
+        generate_button.draw(WINDOW, generate_button.is_hovered(pygame.mouse.get_pos()))
+
+        pygame.display.update()
 
 mode1_button = Button(100, 150, 350, 60, "Mode 1: AI Solver", GRAY, RED, mode1_window)
 mode2_button = Button(100, 250, 350, 60, "Mode 2: User Input", GRAY, RED, mode2_window)
-mode3_button = Button(70, 350, 430, 60, "Mode 3: Interactive Game", GRAY, RED, lambda: print("Mode 3 selected"))
+mode3_button = Button(70, 350, 430, 60, "Mode 3: Interactive Game", GRAY, RED, mode3_window)
 exit_button = Button(150, 450, 240, 60, "Exit", GRAY, RED, sys.exit)
 
 buttons = [mode1_button, mode2_button, mode3_button, exit_button]
